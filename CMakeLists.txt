@@ -21,7 +21,7 @@ pico_sdk_init()
 
 add_executable(${ProjectName}
         main.cpp
-        Motor.cpp
+        motor.cpp
         motor.hpp
 )
 
@@ -33,7 +33,7 @@ target_include_directories(${ProjectName} PRIVATE
 )
 
 add_library(motor
-        Motor.cpp
+        motor.cpp
         motor.hpp
         main.cpp
 )
