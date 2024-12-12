@@ -57,7 +57,11 @@ class Motor {
 		 */
 	uint pwm_channel;
 public:
+	uint gpio1() const {
+		return gpio;
+	}
 
+	uint get_slice_num() const;
 	/**
 	 * @brief Motor constructor that initializes the GPIO and PWM settings.
 	 *

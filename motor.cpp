@@ -18,7 +18,6 @@ Motor::Motor(const uint32_t frequency, const uint gpio) {
 Motor::~Motor() = default;
 
 void Motor::pwm_set_freq() {
-
 	//Value that allows to minimize the frequency of pwm bellow 1.9khz (minimal default value)
 	uint32_t divider16 = RASP_CLOCK / this->frequency / 4096 +
 											 (RASP_CLOCK % (this->frequency * 4096) != 0);
@@ -48,18 +47,23 @@ void Motor::vInitMotors() {
 	this->setSpeed(0);
 
 	pwm_set_enabled(this->slice_num, true);
-
+	printf("aguardando inicialização.....\n");
 	sleep_ms(7000);
 
+	printf("Inincializando, colocando 30%% para começar\n");
 	this->setSpeed(30);
 
 	sleep_ms(3000);
-
+	printf("Começou, colocando 40%% como vel padrão\n");
 	this->setSpeed(40);
+	sleep_ms(1000);
+	printf("acabei a função de init \n");
 }
 
 void Motor::setSpeed(const uint speed) const {
 	pwm_set_chan_level(this->slice_num, this->pwm_channel, this->wrap * speed / 100);
-	// pwm_set_gpio_level(slice_num, speed);
 }
 
+uint Motor::get_slice_num() const {
+	return  this->slice_num;
+}
