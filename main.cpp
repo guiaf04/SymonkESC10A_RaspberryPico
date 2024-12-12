@@ -1,64 +1,49 @@
-//
-// Created by guilherme on 03/12/24.
-//
-// #include <pico/stdio.h>
-// #include <pico/stdio.h>
-
-
-#include <cstdio>
-
-#include "FreeRTOS.h"
+#include <FreeRTOS.h>
+#include <task.h>
+#include "pico/stdlib.h"
+#include "hardware/adc.h"
+#include <stdio.h>
+#include <queue.h>
 #include "motor.hpp"
-#include "task.h"
+
+// Definições de pinos e parâmetros
+#define POT_PIN 26        // Pino do ADC conectado ao potenciômetro
+#define MIN_DUTY 30   // Duty cycle mínimo em porcentagem
+#define MAX_DUTY 50    // Duty cycle máximo em porcentagem
+QueueHandle_t motorQueue;
 
 auto motor = Motor(300, 15);
 
-void motor_task(void *pvParameters) {
+void potentiometerTask(void *pvParameters) {
 	while (true) {
-		int speed = 0;
-		for (int i = 0; i < 2; i++) {
-			printf(" Digite a velocidade: \n");
-			const char speedChar = getchar();
+		// Lê o valor do ADC (0-4095)
+		uint16_t potValue = adc_read();
 
-			const int ascii_to_num = speedChar % 48;
+		// Normaliza para a faixa de 30%-70%
+		int normalizedValue = (potValue * (MAX_DUTY - MIN_DUTY) / 4095) + MIN_DUTY;
 
-			if (i == 0) {
-				speed += ascii_to_num * 10;
-			} else {
-				speed += ascii_to_num;
-			}
+
+		// Envia o valor para a fila
+		if (xQueueSend(motorQueue, &normalizedValue, portMAX_DELAY) != pdPASS) {
+			printf("Erro ao enviar valor para a fila!\n");
 		}
-
-		printf("Speed: %d\n", speed);
-
-		motor.setSpeed(speed);
-
-		vTaskDelay(2000);
+	printf("Pot value: %d \n", normalizedValue);
+		// Pequeno atraso para suavizar leituras
+		vTaskDelay(pdMS_TO_TICKS(50));
 	}
 }
 
-void teste_motor_task(void *pvParams) {
+// Task do motor (exemplo para processar os valores da fila)
+void motorControlTask(void *pvParameters) {
+	int dutyCycle;
 	while (true) {
-		printf("Começando task motor, setando 0%%\n");
-		motor.setSpeed(0);
-
-		vTaskDelay(7000);
-
-		printf("Colocando 30%% para iniciar, espere 3segundos...\n");
-		motor.setSpeed(30);
-
-		vTaskDelay(3000);
-
-		printf("Colocando 40%%, o motor deve estar funcionando\n");
-		motor.setSpeed(40);
-
-		vTaskDelay(3000);
-
-		printf("Colocando 60%%, o motor esta acelerando\n");
-		motor.setSpeed(60);
-
-		vTaskDelay(15000);
-		printf("Tentando novamente...\n");
+		// Aguarda por valores na fila
+		if (xQueueReceive(motorQueue, &dutyCycle, portMAX_DELAY) == pdPASS) {
+			// Ajusta a velocidade do motor usando a classe Motor
+			printf("Velocidade ajustada: %d%%\n", dutyCycle);
+			motor.setSpeed(dutyCycle);
+		}
+		vTaskDelay(50);
 	}
 }
 
@@ -67,10 +52,15 @@ int main() {
 	printf("motor rodando?");
 
 	motor.vInitMotors();
-	// xTaskCreate(motor_task, "motorTask", 1024, NULL, 1, NULL);
-	xTaskCreate(teste_motor_task, "clear_motorTask", 1024, nullptr, 1, nullptr);
+	adc_init();
+	adc_gpio_init(POT_PIN);
+	adc_select_input(0);  // Seleciona o canal 0 do ADC (correspondente ao pino 26)
+
+	// Criação da fila para comunicação entre tasks
+	motorQueue = xQueueCreate(5, sizeof(int));
+	xTaskCreate(potentiometerTask, "PotTask", 256, NULL, 1, NULL);
+	xTaskCreate(motorControlTask, "motorControl", 256, NULL, 1, NULL);
 
 	vTaskStartScheduler();
-
 	while (true);
 }

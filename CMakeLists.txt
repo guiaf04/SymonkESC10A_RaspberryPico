@@ -39,9 +39,11 @@ add_library(motor
 )
 
 target_link_libraries(motor
+        FreeRTOS-Kernel
         FreeRTOS-Kernel-Heap4
         pico_stdlib
         hardware_pwm
+        hardware_adc
 )
 
 target_include_directories(motor PUBLIC
